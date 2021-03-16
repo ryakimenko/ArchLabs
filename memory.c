@@ -12,6 +12,8 @@
 #define COMMANDERROR 0b00010000 // wrong command
 static int memory[MEMORY_SIZE];
 static int flags;
+static int accumReg = 0;
+static int counterReg = 0;
 
 int sc_memoryInit()
 {
@@ -44,7 +46,7 @@ int sc_memoryGet(int address, int* value)
     }
 
     *value = memory[address];
-    return *value;
+    return 0;
 }
 
 int sc_memorySave(char* filename)
@@ -99,4 +101,24 @@ int sc_regGet(int  reg, int* value)
 
 void sc_printReg() {
     printf("%d", flags);
+}
+
+void sc_accumSet(int val)
+{
+    accumReg = val;
+}
+
+int sc_accumGet()
+{
+    return accumReg;
+}
+
+void sc_counterSet(int val)
+{
+    counterReg = val;
+}
+
+int sc_counterGet()
+{
+    return counterReg;
 }

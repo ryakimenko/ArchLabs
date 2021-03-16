@@ -29,4 +29,5 @@ int sc_commandDecode(int value, int* command, int* operand)
 	}
 	*command = value >> 7;
 	*operand = value & 0x7F;
+	return 0;
 }
