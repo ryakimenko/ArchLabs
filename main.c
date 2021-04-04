@@ -4,6 +4,5 @@
 
 int main()
 {
-	interface_render();
-	return 0;
+	shell();
 }

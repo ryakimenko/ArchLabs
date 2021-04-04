@@ -1,10 +1,9 @@
 #include "shell.h"
-#include "terminal.h"
-#include "memory.h"
-#include <stdio.h>
-#include "sys/ioctl.h"
-#include <termios.h>
-#include <unistd.h>
+
+static struct Cell {
+    int posRow;
+    int posCol;
+} currCell;
 
 void get_cell(char buff[6], int value)
 {
@@ -38,6 +37,12 @@ void memory_box_filler()
             putchar(' ');
         }
     }
+    mt_setbgcolor(Black);
+    mt_setfgcolor(White);
+    mt_gotoXY((currCell.posCol * 6) + 2, currCell.posRow + 2);
+    render_single_memory_cell(currCell.posRow * 10 + currCell.posCol);
+    mt_setbgcolor(White);
+    mt_setfgcolor(Black);
 }
 
 
@@ -117,14 +122,50 @@ void instructionCounter_box_render()
 }
 
 //Operation rendering
-void operation_box_render()
+
+static void getOperationBuff(char buff[7], int const command, int const operand)
 {
+    buff[0] = '+';
+    buff[3] = ':';
+    buff[1] = command / 10 + 0x30;
+    buff[2] = command % 10 + 0x30;
+    buff[4] = operand / 10 + 0x30;
+    buff[5] = operand % 10 + 0x30;
+    buff[6] = '\0';
+}
+
+void wrong_str_operation(char buff[7]) {
+    buff[0] = '-';
+    for (int i = 1; i < 6; i++)
+        buff[i] = '0';
+    buff[3] = ':';
+    buff[6] = '\0';
+}
+
+void operation_box_render(int index)
+{
+    int memValue;
+    int command;
+    int operand;
+    int retval;
+    char buff[7];
 
     bc_box(63, 7, 21, 3);
     mt_gotoXY(5 + 63, 7);
     printf(" Operation ");
     mt_gotoXY(7 + 63, 7 + 1);
-    printf("+00 : 00");
+    retval = sc_memoryGet(index, &memValue);
+    if (retval != 0) {
+        wrong_str_operation(buff);
+        printf("%s", buff);
+    }
+    retval = sc_commandDecode(memValue, &command, &operand);
+    if (retval != 0) {
+        wrong_str_operation(buff);
+        printf("%s", buff);
+    }
+    getOperationBuff(buff, command, operand);
+    printf("%s", buff);
 }
 
 //Flags rendering
@@ -170,8 +211,6 @@ void keys_box_render()
     bc_box(47, 13, 37, 10);
     mt_gotoXY(47 + 1, 13);
     printf(" Keys:");
-    mt_gotoXY(47 + 1, 13 + 1);
-    printf("q - quit");
     mt_gotoXY(47 + 1, 13 + 2);
     printf("l - load");
     mt_gotoXY(47 + 1, 13 + 3);
@@ -195,27 +234,219 @@ void bigChar_box_render()
     int offsetCol = 1;
     int valueChar[2];
     bc_box(offsetCol, offsetRow, 46, 10);
-    get_plus(valueChar);
-    bc_printbigchar(valueChar, offsetCol + 1, offsetRow + 1, White, Black);
-    get_zero(valueChar);
-    offsetCol += 9;
-    bc_printbigchar(valueChar, offsetCol, offsetRow + 1, White, Black);
-    offsetCol += 9;
-    bc_printbigchar(valueChar, offsetCol, offsetRow + 1, White, Black);
-    offsetCol += 9;
-    bc_printbigchar(valueChar, offsetCol, offsetRow + 1, White, Black);
-    offsetCol += 9;
-    bc_printbigchar(valueChar, offsetCol, offsetRow + 1, White, Black);
+    sc_memoryGet(currCell.posRow * 10 + currCell.posCol, &memVal);
+    if (sc_commandDecode(memVal, &command, &operand) != 0) {
+        command = 0;
+        operand = 0;
+        get_minus(valueChar);
+        bc_printbigchar(valueChar, offsetCol + 1, offsetRow + 1, Black, White);
+        offsetCol += 9;
+        get_zero(valueChar);
+        bc_printbigchar(valueChar, offsetCol, offsetRow + 1, Black, White);
+        offsetCol += 9;
+        get_zero(valueChar);
+        bc_printbigchar(valueChar, offsetCol, offsetRow + 1, Black, White);
+        offsetCol += 9;
+        get_zero(valueChar);
+        bc_printbigchar(valueChar, offsetCol, offsetRow + 1, Black, White);
+        offsetCol += 9;
+        get_zero(valueChar);
+        bc_printbigchar(valueChar, offsetCol, offsetRow + 1, Black, White);
+    }
+    else {
+        int val1, val2, val3, val4;
+        val4 = memVal % 10;
+        memVal = memVal / 10;
+        val3 = memVal % 10;
+        memVal = memVal / 10;
+        val2 = memVal % 10;
+        memVal = memVal / 10;
+        val1 = memVal % 10;
+        get_plus(valueChar);
+        bc_printbigchar(valueChar, offsetCol + 1, offsetRow + 1, Black, White);
+        offsetCol += 9;
+        choiseBigVal(val1, valueChar);
+        bc_printbigchar(valueChar, offsetCol, offsetRow + 1, Black, White);
+        offsetCol += 9;
+        choiseBigVal(val2, valueChar);
+        bc_printbigchar(valueChar, offsetCol, offsetRow + 1, Black, White);
+        offsetCol += 9;
+        choiseBigVal(val3, valueChar);
+        bc_printbigchar(valueChar, offsetCol, offsetRow + 1, Black, White);
+        offsetCol += 9;
+        choiseBigVal(val4, valueChar);
+        bc_printbigchar(valueChar, offsetCol, offsetRow + 1, Black, White);
+    }
+}
+
+void fillContext() {
+    int height, width;
+    mt_getscreensize(&height, &width);
+
+    mt_gotoXY(0, 0);
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++)
+            putchar(' ');
+        putchar('\n');
+    }
 }
 
 void interface_render()
 {
+    mt_setbgcolor(White);
+    mt_setfgcolor(Black);
+    fillContext();
     mt_clrscr();
     memory_box_render();
     accumulator_box_render();
     instructionCounter_box_render();
-    operation_box_render();
+    operation_box_render(currCell.posRow * 10 + currCell.posCol);
     flags_box_render();
-    keys_box_render();
     bigChar_box_render();
+    keys_box_render();
+    mt_gotoXY(1, 25);
 }
+
+void shell()
+{
+
+    sc_regInit();
+    sc_memoryInit();
+
+    currCell.posCol = 0;
+    currCell.posRow = 0;
+
+    rk_mytermregime(0, 0, 0, 0, 1);
+
+    interface_render();
+
+    int key;
+
+    while (1)
+    {
+        rk_readkey(&key);
+        switch (key)
+        {
+        case KEY_up:
+            if (currCell.posRow > 0) {
+                currCell.posRow--;
+                interface_render();
+            }
+            break;
+        case KEY_down:
+            if (currCell.posRow < 9) {
+                currCell.posRow++;
+                interface_render();
+            }
+            break;
+        case KEY_left:
+            if (currCell.posCol > 0) {
+                currCell.posCol--;
+                interface_render();
+            }
+            break;
+        case KEY_right:
+            if (currCell.posCol < 9) {
+                currCell.posCol++;
+                interface_render();
+            }
+            break;
+        case KEY_enter: {
+            mt_gotoXY(1, 25);
+            inputMemory();
+            getchar();
+            interface_render();
+            break;
+        }
+
+        case KEY_s: {
+            mt_gotoXY(1, 25);
+            rk_mytermregime(1, 0, 0, 1, 1);
+            printf("file name:\n");
+            char fileName[264];
+            scanf("%s", fileName);
+            getchar();
+            rk_mytermregime(0, 0, 0, 0, 1);
+            sc_memorySave(fileName);
+            interface_render();
+            break;
+        }
+        
+        case KEY_l: {
+            mt_gotoXY(1, 25);
+            rk_mytermregime(1, 0, 0, 1, 1);
+            printf("file name:\n");
+            char fileName[264];
+            scanf("%s", fileName);
+            getchar();
+            rk_mytermregime(0, 0, 0, 0, 1);
+            sc_memoryLoad(fileName);
+            interface_render();
+            break;
+        }
+
+        case KEY_f5: {
+            printf("f5");
+        }
+
+        default:
+            break;
+        }
+    }
+
+
+    
+}
+
+void inputMemory()
+{
+    printf("Input value:\n");
+    rk_mytermregime(1, 0, 0, 1, 1);
+    int command, operand, result;
+    scanf("%2d%2d", &command, &operand);
+    int retval = sc_commandEncode(command, operand, &result);
+    if (retval != 0)
+        printf("Input error");
+    else
+        sc_memorySet((currCell.posRow * 10 + currCell.posCol), result);
+
+    rk_mytermregime(0, 0, 0, 0, 1);
+}
+
+
+void choiseBigVal(int val, int retVal[2])
+{
+    switch (val) {
+    case 0:
+        get_zero(retVal);
+        return;
+    case 1:
+        get_one(retVal);
+        return;
+    case 2:
+        get_two(retVal);
+        return;
+    case 3:
+        get_three(retVal);
+        return;
+    case 4:
+        get_four(retVal);
+        return;
+    case 5:
+        get_five(retVal);
+        return;
+    case 6:
+        get_six(retVal);
+        return;
+    case 7:
+        get_seven(retVal);
+        return;
+    case 8:
+        get_eight(retVal);
+        return;
+    case 9:
+        get_nine(retVal);
+        return;
+    }
+}
+
