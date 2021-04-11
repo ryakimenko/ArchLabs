@@ -1,5 +1,6 @@
 #include "readKey.h"
 
+
 int receiveEscSeq()
 {
     unsigned char sym;

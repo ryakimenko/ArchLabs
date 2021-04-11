@@ -1,5 +1,36 @@
 #include "shell.h"
 
+void inputMemory();
+void reset();
+void inputAccumulator();
+void inputCounter();
+void iterCounter();
+void sighandler(int signo)
+{
+    mt_gotoXY(1, 25);
+    int clockFlag;
+    sc_regGet(CLOCKIGNORE, &clockFlag);
+    if (clockFlag)
+        return;
+    if (signo == SIGALRM) {
+        mt_gotoXY(1, 25);
+        iterCounter();
+        mt_gotoXY(1, 25);
+        instructionCounter_box_render();
+        mt_gotoXY(1, 25);
+        memory_box_render();
+        mt_gotoXY(1, 25);
+        bigChar_box_render();
+        mt_gotoXY(1, 25);
+    }
+    if (signo == SIGUSR1) {
+        reset();
+        mt_gotoXY(1, 25);
+    }
+    mt_gotoXY(1, 25);
+
+}
+
 static struct Cell {
     int posRow;
     int posCol;
@@ -25,6 +56,7 @@ void memory_box_render()
     mt_gotoXY(26, 1);
     printf(" Memory ");
     memory_box_filler();
+    mt_gotoXY(1, 25);
 }
 
 void memory_box_filler()
@@ -43,6 +75,7 @@ void memory_box_filler()
     render_single_memory_cell(currCell.posRow * 10 + currCell.posCol);
     mt_setbgcolor(White);
     mt_setfgcolor(Black);
+    mt_gotoXY(1, 25);
 }
 
 
@@ -106,6 +139,7 @@ void accumulator_box_render()
 
     get_memory_cell(acum_memory_cell, command, operand);
     printf("%s", acum_memory_cell);
+    mt_gotoXY(1, 25);
 }
 
  //InstructionCounter rendering
@@ -119,6 +153,7 @@ void instructionCounter_box_render()
     mt_gotoXY(63 + 7, 1 + 4);
     get_cell(counter_memory_cell, counter_value);
     printf("%s",counter_memory_cell);
+    mt_gotoXY(1, 25);
 }
 
 //Operation rendering
@@ -166,6 +201,7 @@ void operation_box_render(int index)
     }
     getOperationBuff(buff, command, operand);
     printf("%s", buff);
+    mt_gotoXY(1, 25);
 }
 
 //Flags rendering
@@ -176,6 +212,7 @@ void flags_box_render()
     printf(" Flags ");
     mt_gotoXY(63 + 7, 1 + 10);
     flags_render();
+    mt_gotoXY(1, 25);
 }
 
 void flags_render()
@@ -203,6 +240,7 @@ void flags_render()
         putchar(flagsBuff[i]);
         putchar(' ');
     }
+    mt_gotoXY(1, 25);
 }
 
 //Keys rendering
@@ -225,6 +263,7 @@ void keys_box_render()
     printf("F5 - accumulator");
     mt_gotoXY(47 + 1, 13 + 8);
     printf("F6 - instructionCounter");
+    mt_gotoXY(1, 25);
 }
 
 void bigChar_box_render()
@@ -277,6 +316,7 @@ void bigChar_box_render()
         choiseBigVal(val4, valueChar);
         bc_printbigchar(valueChar, offsetCol, offsetRow + 1, Black, White);
     }
+    mt_gotoXY(1, 25);
 }
 
 void fillContext() {
@@ -301,8 +341,8 @@ void interface_render()
     accumulator_box_render();
     instructionCounter_box_render();
     operation_box_render(currCell.posRow * 10 + currCell.posCol);
-    flags_box_render();
     bigChar_box_render();
+    flags_box_render();
     keys_box_render();
     mt_gotoXY(1, 25);
 }
@@ -316,6 +356,25 @@ void shell()
     currCell.posCol = 0;
     currCell.posRow = 0;
 
+    /*sc_regSet(CLOCKIGNORE, 1);*/
+
+    struct sigaction act;
+    act.sa_handler = &sighandler;
+    act.sa_flags = SA_RESTART;
+
+    sigemptyset(&act.sa_mask);
+
+    sigaction(SIGALRM, &act, NULL);
+    sigaction(SIGUSR1, &act, NULL);
+
+    struct itimerval nval, oval;
+    nval.it_interval.tv_sec = 1;
+    nval.it_interval.tv_usec = 0;
+    nval.it_value.tv_sec = 1;
+    nval.it_value.tv_usec = 0;
+
+    setitimer(ITIMER_REAL, &nval, &oval);
+
     rk_mytermregime(0, 0, 0, 0, 1);
 
     interface_render();
@@ -324,6 +383,7 @@ void shell()
 
     while (1)
     {
+        mt_gotoXY(1, 25);
         rk_readkey(&key);
         switch (key)
         {
@@ -352,14 +412,17 @@ void shell()
             }
             break;
         case KEY_enter: {
+            alarm(0);
             mt_gotoXY(1, 25);
             inputMemory();
             getchar();
             interface_render();
+            setitimer(ITIMER_REAL, &nval, &oval);
             break;
         }
 
         case KEY_s: {
+            alarm(0);
             mt_gotoXY(1, 25);
             rk_mytermregime(1, 0, 0, 1, 1);
             printf("file name:\n");
@@ -369,10 +432,12 @@ void shell()
             rk_mytermregime(0, 0, 0, 0, 1);
             sc_memorySave(fileName);
             interface_render();
+            setitimer(ITIMER_REAL, &nval, &oval);
             break;
         }
         
         case KEY_l: {
+            alarm(0);
             mt_gotoXY(1, 25);
             rk_mytermregime(1, 0, 0, 1, 1);
             printf("file name:\n");
@@ -382,14 +447,36 @@ void shell()
             rk_mytermregime(0, 0, 0, 0, 1);
             sc_memoryLoad(fileName);
             interface_render();
+            setitimer(ITIMER_REAL, &nval, &oval);
+            break;
+        }
+        case KEY_i: {
+            mt_gotoXY(1, 25);
+            raise(SIGUSR1);
             break;
         }
 
         case KEY_f5: {
-            printf("f5");
+            alarm(0);
+            mt_gotoXY(1, 25);
+            inputAccumulator();
+            getchar();
+            interface_render();
+            setitimer(ITIMER_REAL, &nval, &oval);
+            break;
         }
 
-        default:
+        case KEY_f6: {
+            alarm(0);
+            mt_gotoXY(1, 25);
+            inputCounter();
+            getchar();
+            interface_render();
+            setitimer(ITIMER_REAL, &nval, &oval);
+            break;
+        }
+
+        case KEY_other:
             break;
         }
     }
@@ -450,3 +537,51 @@ void choiseBigVal(int val, int retVal[2])
     }
 }
 
+
+
+void reset()
+{
+    sc_regInit();
+    sc_memoryInit();
+    sc_accumSet(0);
+    sc_counterSet(0);
+    interface_render();
+}
+
+void inputAccumulator()
+{
+    printf("Input value:\n");
+    rk_mytermregime(1, 0, 0, 1, 1);
+    int command, operand, result;
+    scanf("%2d%2d", &command, &operand);
+    int retval = sc_commandEncode(command, operand, &result);
+    if (retval != 0) {
+        printf("Input error");
+        rk_mytermregime(0, 0, 0, 0, 1);;
+    }
+    sc_accumSet(result);
+    rk_mytermregime(0, 0, 0, 0, 1);
+}
+
+void inputCounter()
+{
+    printf("Input value:\n");
+    rk_mytermregime(1, 0, 0, 1, 0);
+    int val;
+    scanf("%4d", &val);
+    if (val > 9999) {
+        printf("Input error");
+        rk_mytermregime(0, 0, 0, 0, 1);;
+    }
+    sc_counterSet(val);
+    rk_mytermregime(0, 0, 0, 0, 1);
+}
+
+void iterCounter() {
+    int val, a;
+    a = sc_counterGet();
+    sc_regGet(CLOCKIGNORE, &val);
+    if (!val)
+        a++;
+    sc_counterSet(a);
+}

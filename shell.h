@@ -8,6 +8,8 @@
 #include "sys/ioctl.h"
 #include <termios.h>
 #include <unistd.h>
+#include <signal.h>
+#include <sys/time.h>
 
 void get_cell(char buff[6], int value);
 
