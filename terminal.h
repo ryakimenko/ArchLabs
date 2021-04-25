@@ -102,5 +102,35 @@ static void  get_minus(int value[2]) {
 	value[1] = 126;
 }
 
+static void get_A(int value[2]) {
+	value[0] = 2118269952;
+	value[1] = 4342338;
+}
+
+static void get_B(int value[2]) {
+	value[0] = 1044528640;
+	value[1] = 4080194;
+}
+
+static void get_C(int value[2]) {
+	value[0] = 37895168;
+	value[1] = 3949058;
+}
+
+static void get_D(int value[2]) {
+	value[0] = 1111637504;
+	value[1] = 4080194;
+}
+
+static void get_E(int value[2]) {
+	value[0] = 2114092544;
+	value[1] = 8258050;
+}
+
+static void get_F(int value[2]) {
+	value[0] = 33717760;
+	value[1] = 131646;
+}
+
 #endif // ! TERMINAL_h
 

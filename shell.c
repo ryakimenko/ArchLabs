@@ -13,15 +13,9 @@ void sighandler(int signo)
     if (clockFlag)
         return;
     if (signo == SIGALRM) {
-        mt_gotoXY(1, 25);
         iterCounter();
-        mt_gotoXY(1, 25);
-        instructionCounter_box_render();
-        mt_gotoXY(1, 25);
-        memory_box_render();
-        mt_gotoXY(1, 25);
-        bigChar_box_render();
-        mt_gotoXY(1, 25);
+        interface_render();
+        fflush((stdout));
     }
     if (signo == SIGUSR1) {
         reset();
@@ -294,13 +288,13 @@ void bigChar_box_render()
     }
     else {
         int val1, val2, val3, val4;
-        val4 = memVal % 10;
-        memVal = memVal / 10;
-        val3 = memVal % 10;
-        memVal = memVal / 10;
-        val2 = memVal % 10;
-        memVal = memVal / 10;
-        val1 = memVal % 10;
+        val4 = memVal % 16;
+        memVal = memVal / 16;
+        val3 = memVal % 16;
+        memVal = memVal / 16;
+        val2 = memVal % 16;
+        memVal = memVal / 16;
+        val1 = memVal % 16;
         get_plus(valueChar);
         bc_printbigchar(valueChar, offsetCol + 1, offsetRow + 1, Black, White);
         offsetCol += 9;
@@ -344,11 +338,14 @@ void interface_render()
     bigChar_box_render();
     flags_box_render();
     keys_box_render();
+    fflush((stdout));
     mt_gotoXY(1, 25);
 }
 
 void shell()
 {
+
+    int flag_timer=0;
 
     sc_regInit();
     sc_memoryInit();
@@ -356,7 +353,6 @@ void shell()
     currCell.posCol = 0;
     currCell.posRow = 0;
 
-    /*sc_regSet(CLOCKIGNORE, 1);*/
 
     struct sigaction act;
     act.sa_handler = &sighandler;
@@ -373,7 +369,7 @@ void shell()
     nval.it_value.tv_sec = 1;
     nval.it_value.tv_usec = 0;
 
-    setitimer(ITIMER_REAL, &nval, &oval);
+    sc_regSet(CLOCKIGNORE, 1);
 
     rk_mytermregime(0, 0, 0, 0, 1);
 
@@ -388,92 +384,143 @@ void shell()
         switch (key)
         {
         case KEY_up:
-            if (currCell.posRow > 0) {
-                currCell.posRow--;
-                interface_render();
+            if (flag_timer == 1)
+                break;
+            else {
+                if (currCell.posRow > 0) {
+                    currCell.posRow--;
+                    sc_counterSet(sc_counterGet() - 10);
+                    interface_render();
+                }
+                break;
             }
-            break;
         case KEY_down:
-            if (currCell.posRow < 9) {
-                currCell.posRow++;
-                interface_render();
+            if (flag_timer == 1)
+                break;
+            else {
+                if (currCell.posRow < 9) {
+                    currCell.posRow++;
+                    sc_counterSet(sc_counterGet() + 10);
+                    interface_render();
+                }
+                break;
             }
-            break;
         case KEY_left:
-            if (currCell.posCol > 0) {
-                currCell.posCol--;
-                interface_render();
+            if (flag_timer == 1)
+                break;
+            else {
+                if (currCell.posCol > 0) {
+                    currCell.posCol--;
+                    sc_counterSet(sc_counterGet() - 1);
+                    interface_render();
+                }
+                break;
             }
-            break;
         case KEY_right:
-            if (currCell.posCol < 9) {
-                currCell.posCol++;
-                interface_render();
+            if (flag_timer == 1)
+                break;
+            else {
+                if (currCell.posCol < 9) {
+                    currCell.posCol++;
+                    sc_counterSet(sc_counterGet() + 1);
+                    interface_render();
+                }
+                break;
             }
-            break;
         case KEY_enter: {
-            alarm(0);
-            mt_gotoXY(1, 25);
-            inputMemory();
-            getchar();
-            interface_render();
-            setitimer(ITIMER_REAL, &nval, &oval);
-            break;
+            if (flag_timer == 1)
+                break;
+            else {
+                mt_gotoXY(1, 25);
+                inputMemory();
+                getchar();
+                interface_render();
+                break;
+            }
         }
 
         case KEY_s: {
-            alarm(0);
-            mt_gotoXY(1, 25);
-            rk_mytermregime(1, 0, 0, 1, 1);
-            printf("file name:\n");
-            char fileName[264];
-            scanf("%s", fileName);
-            getchar();
-            rk_mytermregime(0, 0, 0, 0, 1);
-            sc_memorySave(fileName);
-            interface_render();
-            setitimer(ITIMER_REAL, &nval, &oval);
-            break;
+            if (flag_timer == 1)
+                break;
+            else {
+                mt_gotoXY(1, 25);
+                rk_mytermregime(1, 0, 0, 1, 1);
+                printf("file name:\n");
+                char fileName[264];
+                scanf("%s", fileName);
+                getchar();
+                rk_mytermregime(0, 0, 0, 0, 1);
+                sc_memorySave(fileName);
+                interface_render();
+                break;
+            }
         }
         
         case KEY_l: {
-            alarm(0);
-            mt_gotoXY(1, 25);
-            rk_mytermregime(1, 0, 0, 1, 1);
-            printf("file name:\n");
-            char fileName[264];
-            scanf("%s", fileName);
-            getchar();
-            rk_mytermregime(0, 0, 0, 0, 1);
-            sc_memoryLoad(fileName);
-            interface_render();
-            setitimer(ITIMER_REAL, &nval, &oval);
-            break;
+            if (flag_timer == 1)
+                break;
+            else {
+                mt_gotoXY(1, 25);
+                rk_mytermregime(1, 0, 0, 1, 1);
+                printf("file name:\n");
+                char fileName[264];
+                scanf("%s", fileName);
+                getchar();
+                rk_mytermregime(0, 0, 0, 0, 1);
+                sc_memoryLoad(fileName);
+                interface_render();
+                break;
+            }
         }
         case KEY_i: {
-            mt_gotoXY(1, 25);
-            raise(SIGUSR1);
-            break;
+            if (flag_timer == 1)
+                break;
+            else {
+                mt_gotoXY(1, 25);
+                raise(SIGUSR1);
+                break;
+            }
         }
 
-        case KEY_f5: {
-            alarm(0);
-            mt_gotoXY(1, 25);
-            inputAccumulator();
-            getchar();
-            interface_render();
-            setitimer(ITIMER_REAL, &nval, &oval);
+        case KEY_r:
+            if (flag_timer == 0) 
+            {
+                flag_timer = 1;
+                sc_regSet(CLOCKIGNORE, 0);
+                interface_render();
+                setitimer(ITIMER_REAL, &nval, &oval);
+
+            }
+            else
+            {
+                sc_regSet(CLOCKIGNORE, 1);
+                flag_timer = 0;
+                interface_render();
+                alarm(0);
+            }
             break;
+        case KEY_f5: {
+            if (flag_timer == 1)
+                break;
+            else {
+                mt_gotoXY(1, 25);
+                inputAccumulator();
+                getchar();
+                interface_render();
+                break;
+            }
         }
 
         case KEY_f6: {
-            alarm(0);
-            mt_gotoXY(1, 25);
-            inputCounter();
-            getchar();
-            interface_render();
-            setitimer(ITIMER_REAL, &nval, &oval);
-            break;
+            if (flag_timer == 1)
+                break;
+            else {
+                mt_gotoXY(1, 25);
+                inputCounter();
+                getchar();
+                interface_render();
+                break;
+            }
         }
 
         case KEY_other:
@@ -534,6 +581,25 @@ void choiseBigVal(int val, int retVal[2])
     case 9:
         get_nine(retVal);
         return;
+    case 10:
+        get_A(retVal);
+        return;
+    case 11:
+        get_B(retVal);
+        return;
+    case 12:
+        get_C(retVal);
+        return;
+    case 13:
+        get_D(retVal);
+        return;
+    case 14:
+        get_E(retVal);
+        return;
+    case 15:
+        get_F(retVal);
+        return;
+
     }
 }
 
@@ -581,7 +647,15 @@ void iterCounter() {
     int val, a;
     a = sc_counterGet();
     sc_regGet(CLOCKIGNORE, &val);
-    if (!val)
-        a++;
+    if (!val) {
+        if (a<=98)
+            a++;
+        else
+        {
+            a = 0;
+        }
+    }
+    currCell.posCol = a % 10;
+    currCell.posRow = a / 10;
     sc_counterSet(a);
 }
